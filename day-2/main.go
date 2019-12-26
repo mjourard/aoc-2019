@@ -15,39 +15,43 @@ import (
 	"strconv"
 )
 
+const TargetOutput = 19690720
+
 func main() {
 	//read in the file that contains the input
 	if len(os.Args) < 2 {
 		panic("Usage: <exe> <input_file_of_masses>")
 	}
-	intcode, err := LoadIntCodeProgram(os.Args[1])
+	program, err := LoadIntCodeProgram(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
 	}
+	var i, j int
+	found := false
 
-	pos := 0
-	var opcode, loc1, loc2, loc3 int
-	for {
-		if pos >= len(intcode) {
+	for i = 0; i <= 99; i++ {
+		for j = 0; j <= 99; j++ {
+			//clone the program
+			clone := make([]int, len(program))
+			copy(clone, program)
+			//run the program with the noun and verb combination
+			out, err := RunIntCodeProgram(clone, i, j)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Printf("n: %d, v: %d = %d\n", i, j, out)
+			if out == TargetOutput {
+				fmt.Println("Found target output!! Halting...")
+				found = true
+				break
+			}
+		}
+		if found {
 			break
 		}
-		opcode = intcode[pos]
-		//immediately halt on opcode 99
-		if opcode == 99 {
-			break
-		}
-		loc1 = intcode[pos+1]
-		loc2 = intcode[pos+2]
-		loc3 = intcode[pos+3]
-		switch opcode {
-		case 1:
-			intcode[loc3] = intcode[loc1] + intcode[loc2]
-		case 2:
-			intcode[loc3] = intcode[loc1] * intcode[loc2]
-		}
-		pos += 4
 	}
-	fmt.Printf("Final value at position 0 is %d", intcode[0])
+
+	fmt.Printf("The noun %d and the verb %d produce %d\nThe final value of 100 * noun + verb = %d\n", i, j, TargetOutput, 100*i+j)
 }
 
 func LoadIntCodeProgram(filename string) ([]int, error) {
@@ -77,4 +81,36 @@ func LoadIntCodeProgram(filename string) ([]int, error) {
 		intcodes = append(intcodes, curInt)
 	}
 	return intcodes, nil
+}
+
+func RunIntCodeProgram(program []int, noun int, verb int) (int, error) {
+	//load the noun and verb
+	program[1] = noun
+	program[2] = verb
+
+	//run the program
+	pos := 0
+	var opcode, loc1, loc2, loc3 int
+	for {
+		if pos >= len(program) {
+			return -1, errors.New("ended up at a position that is greater than the length of the passed in program")
+		}
+		opcode = program[pos]
+		//immediately halt on opcode 99
+		if opcode == 99 {
+			break
+		}
+		loc1 = program[pos+1]
+		loc2 = program[pos+2]
+		loc3 = program[pos+3]
+		switch opcode {
+		case 1:
+			program[loc3] = program[loc1] + program[loc2]
+		case 2:
+			program[loc3] = program[loc1] * program[loc2]
+		}
+		pos += 4
+	}
+
+	return program[0], nil
 }
