@@ -24,19 +24,6 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	attempt := lower
-	validPasswords := 0
-	for {
-		if AttemptIsValid(attempt) {
-			validPasswords++
-			fmt.Printf("Valid password (%d)! found so far: %d\n", attempt, validPasswords)
-		}
-		attempt++
-		if attempt > upper {
-			break
-		}
-	}
-	fmt.Printf("Between %d and %d, there are %d valid passwords", lower, upper, validPasswords)
 }
 
 func GetLimits(filename string) (int, int, error) {
