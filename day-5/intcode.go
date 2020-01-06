@@ -45,6 +45,9 @@ func (i *Intcode) Run() error {
 //It will return the opcode that was processed and the new position of the i.program
 func (i *Intcode) HandleInstruction(pos int) (int, int, error) {
 	temp := i.program[pos]
+	if temp == 99 {
+		return 99, pos, nil
+	}
 	opcode := temp % 100
 	temp /= 100
 	par1 := temp % 10
@@ -64,7 +67,9 @@ func (i *Intcode) HandleInstruction(pos int) (int, int, error) {
 	}
 	//parameters that an instruction writes to will never be in immediate mode
 	//for now, this can stay as is
-	loc3 = i.program[pos+3]
+	if len(i.program) > pos+3 {
+		loc3 = i.program[pos+3]
+	}
 	switch opcode {
 	case 1:
 		i.program[loc3] = i.program[loc1] + i.program[loc2]
@@ -99,6 +104,34 @@ func (i *Intcode) HandleInstruction(pos int) (int, int, error) {
 			return -1, -1, errors.Wrap(err, fmt.Sprintf("io error: unable to write value %d to output", i.program[loc1]))
 		}
 		pos += 2
+	case 5:
+		//jump-if-true: if first param is non-zero, sets instruction pointer to value at second parameter. Otherwise does nothing
+		pos += 3
+		if i.program[loc1] != 0 {
+			pos = i.program[loc2]
+		}
+	case 6:
+		//jump-if-false: if first param is zero, sets instruction pointer to value at second parameter. Otherwise, does nothing
+		pos += 3
+		if i.program[loc1] == 0 {
+			pos = i.program[loc2]
+		}
+	case 7:
+		//less than: if the first param is less than the second param, it stores 1 in the position given by the third parameter. Otherwise, stores 0
+		valToStore := 0
+		if i.program[loc1] < i.program[loc2] {
+			valToStore = 1
+		}
+		i.program[loc3] = valToStore
+		pos += 4
+	case 8:
+		//equals: if first param is equal to second param, store 1 at position given by third parameter. Otherwise, store 0
+		valToStore := 0
+		if i.program[loc1] == i.program[loc2] {
+			valToStore = 1
+		}
+		i.program[loc3] = valToStore
+		pos += 4
 	}
 	return opcode, pos, nil
 }
