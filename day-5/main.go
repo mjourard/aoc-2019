@@ -1,81 +1,71 @@
 // Copyright 2019 Adknown Inc. All rights reserved.
-// Created:  2019-12-26
+// Created:  2019-12-25
 // Author:   matt
 // Project:  aoc-2019
 
 package main
 
 import (
-	"bufio"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
 )
 
+const TargetOutput = 19690720
+
 func main() {
-	//load in the input values from a file
-	if len(os.Args) < 2 {
-		log.Fatalln("Usage: <exe> <input_file_of_limits>")
+	//read in the file that contains the input
+	if len(os.Args) < 3 {
+		panic("Usage: <exe> <input_file_of_intcode_program> <input_to_program>")
 	}
-	lower, upper, err := GetLimits(os.Args[1])
+	//load the program
+	program, err := LoadIntCodeProgram(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
 	}
+	//create the io values for the program
+	in, err := os.Open(os.Args[2])
+	if err != nil {
+		log.Fatalln(err)
+	}
+	out := os.Stdout
+	intcode := Init(program, in, out)
 
+	err = intcode.Run()
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
-func GetLimits(filename string) (int, int, error) {
-	file, err := os.Open(filename)
+func LoadIntCodeProgram(filename string) ([]int, error) {
+	csvfile, err := os.Open(filename)
 	if err != nil {
-		return -1, -1, err
+		return nil, err
 	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	scanner.Scan()
-	txt := scanner.Text()
-	if len(txt) < 1 {
-		return -1, -1, errors.New("first line is empty in passed in file")
+
+	// Parse the file
+	r := csv.NewReader(csvfile)
+
+	// Iterate through the records
+	// Read each record from csv
+	tape, err := r.Read()
+	if err == io.EOF {
+		return nil, errors.New("input file did not contain an Intcode program")
 	}
-	lower, err := strconv.Atoi(txt)
 	if err != nil {
-		return -1, -1, errors.New(fmt.Sprintf("Unable to convert string (%s) to number", txt))
+		return nil, err
 	}
-	scanner.Scan()
-	txt = scanner.Text()
-	if len(txt) < 1 {
-		return -1, -1, errors.New("second line is empty in passed in file")
-	}
-	upper, err := strconv.Atoi(txt)
-	if err != nil {
-		return -1, -1, errors.New(fmt.Sprintf("Unable to convert string (%s) to number", txt))
-	}
-
-	return lower, upper, nil
-}
-
-func AttemptIsValid(attempt int) bool {
-	lastDigit := 10
-	secondLastDigit := 10
-	hasDupe, neverDecrease := false, true
-	//we check for if its never decreasing from left to right by checking if it is always decreases or stays the same right to left
-	for {
-		digit := attempt % 10
-		attempt /= 10
-		if digit == lastDigit && digit != secondLastDigit && digit != attempt%10 {
-			hasDupe = true
+	intcodes := make([]int, 0)
+	for _, opcode := range tape {
+		curInt, err := strconv.Atoi(opcode)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("unable to convert opcode '%s' to a number", opcode))
 		}
-		if digit > lastDigit {
-			neverDecrease = false
-		}
-		secondLastDigit = lastDigit
-		lastDigit = digit
-
-		if attempt == 0 {
-			break
-		}
+		intcodes = append(intcodes, curInt)
 	}
-
-	return hasDupe && neverDecrease
+	return intcodes, nil
 }
