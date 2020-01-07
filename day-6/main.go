@@ -31,7 +31,17 @@ func (p *Planet) AddPlanet(planet *Planet) {
 	p.Orbiting = append(p.Orbiting, planet)
 }
 
+func (p *Planet) Copy() *Planet {
+	newplanet := InitPlanet(p.Name)
+	for _, orbitingPlanet := range p.Orbiting {
+		newplanet.Orbiting = append(newplanet.Orbiting, orbitingPlanet.Copy())
+	}
+	return newplanet
+}
+
 const CenterOfUniverse = "COM"
+const StartLabel = "YOU"
+const EndLabel = "SAN"
 
 func main() {
 	//load in the input values from a file
@@ -120,6 +130,30 @@ func CalcTotalOrbits(previousOrbits int, planet *Planet) int {
 //it does this with a DepthFirstSearch, finding the target nodes from the root tree and creating pruned copies of the tree such that
 //the only nodes left of the two copies of the root tree will contain nodes directly leading to the root.
 //From there, we only need to find two shared nodes within the pruned trees and add the distance to the leaf nodes to get the minimum orbital transfers
-func GetMinOrbitalTransfers(root *Planet, start *Planet, end *Planet) (int, error) {
+func GetMinOrbitalTransfers(root *Planet, start string, end string) (int, error) {
+	startChain := root.Copy()
+	//TODO: do the same here for the end chain
+	startChain, err := GetPrunedPlanetChain(startChain, start)
+	if err != nil {
+
+	}
 	return 0, nil
+}
+
+func GetPrunedPlanetChain(root *Planet, target string) (*Planet, error) {
+	for idx, planet := range root.Orbiting {
+		ret, err := GetPrunedPlanetChain(planet, target)
+		if err != nil {
+			return nil, err
+		}
+		if ret != nil {
+			return root, nil
+		}
+		planet.Orbiting[idx] = nil
+	}
+	if root.Name == target {
+		return root, nil
+	}
+	root.Orbiting = nil
+	return nil, nil
 }
