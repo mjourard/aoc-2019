@@ -63,6 +63,10 @@ func main() {
 	totalOrbits := CalcTotalOrbits(0, rootOrbit)
 
 	fmt.Printf("The total number of orbits is %d\n", totalOrbits)
+
+	//find the number of orbital transfers required to get to Satan
+	numOrbitalTransfers, err := GetMinOrbitalTransfers(rootOrbit, StartLabel, EndLabel)
+	fmt.Printf("The minimum number of orbits requried to get to %s is %d", EndLabel, numOrbitalTransfers)
 }
 
 func ReadInput(filename string) ([]string, error) {
@@ -132,24 +136,80 @@ func CalcTotalOrbits(previousOrbits int, planet *Planet) int {
 //From there, we only need to find two shared nodes within the pruned trees and add the distance to the leaf nodes to get the minimum orbital transfers
 func GetMinOrbitalTransfers(root *Planet, start string, end string) (int, error) {
 	startChain := root.Copy()
-	//TODO: do the same here for the end chain
 	startChain, err := GetPrunedPlanetChain(startChain, start)
 	if err != nil {
-
+		return -1, err
 	}
-	return 0, nil
+	planetMap := map[string]int{}
+	var temp *Planet
+	count := 0
+	temp = startChain
+
+	for {
+		planetMap[temp.Name] = count
+		count++
+		if len(temp.Orbiting) == 0 {
+			break
+		}
+		temp = temp.Orbiting[0]
+	}
+
+	endChain := root.Copy()
+	endChain, err = GetPrunedPlanetChain(endChain, end)
+	if err != nil {
+		return -1, err
+	}
+	temp = endChain
+	var distanceToEnd int
+	for {
+		if len(temp.Orbiting) == 0 {
+			break
+		}
+		if len(temp.Orbiting) > 1 {
+			panic("orbiting count greater than 1, not a pruned tree!")
+		}
+		if _, ok := planetMap[temp.Orbiting[0].Name]; ok {
+			temp = temp.Orbiting[0]
+			continue
+		}
+		//this is the planet that diverges
+		//subtract one because we don't include the planet we are starting from
+		distanceToEnd = planetMap[start] - planetMap[temp.Name] - 1
+		for {
+			if len(temp.Orbiting) == 0 {
+				break
+			}
+			if len(temp.Orbiting) > 1 {
+				panic("orbiting count greater than 1, not a pruned tree!")
+			}
+			temp = temp.Orbiting[0]
+			distanceToEnd++
+		}
+		//substract one again for the ending planet which we want to share an orbit with, not be orbiting around
+		distanceToEnd--
+	}
+
+	return distanceToEnd, nil
 }
 
 func GetPrunedPlanetChain(root *Planet, target string) (*Planet, error) {
+	var foundPlanet *Planet
 	for idx, planet := range root.Orbiting {
 		ret, err := GetPrunedPlanetChain(planet, target)
 		if err != nil {
 			return nil, err
 		}
 		if ret != nil {
-			return root, nil
+			foundPlanet = ret
+			continue
 		}
-		planet.Orbiting[idx] = nil
+		if planet.Orbiting != nil {
+			planet.Orbiting[idx] = nil
+		}
+	}
+	if foundPlanet != nil {
+		root.Orbiting = []*Planet{foundPlanet}
+		return root, nil
 	}
 	if root.Name == target {
 		return root, nil
